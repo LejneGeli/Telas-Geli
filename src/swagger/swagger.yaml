@@ -1,0 +1,355 @@
+openapi: 3.0.3
+info:
+  title: Telas Mosqueteiras API
+  version: 1.0.0
+  description: API REST para clientes, endereços, tipos de tela, solicitações de serviço, visitas de medição e itens do pedido.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: admin@mosquiteiras.local
+        password:
+          type: string
+          example: "123456"
+    UserInput:
+      type: object
+      properties:
+        name: { type: string, example: "Maria Admin" }
+        email: { type: string, example: "maria@email.com" }
+        password: { type: string, example: "123456" }
+        role: { type: string, example: "attendant" }
+    CustomerInput:
+      type: object
+      properties:
+        name: { type: string, example: "Ana Souza" }
+        email: { type: string, example: "ana@email.com" }
+        phone: { type: string, example: "11988887777" }
+        document: { type: string, example: "12345678901" }
+    AddressInput:
+      type: object
+      properties:
+        customer_id: { type: integer, example: 1 }
+        street: { type: string, example: "Rua das Flores" }
+        number: { type: string, example: "120" }
+        neighborhood: { type: string, example: "Centro" }
+        city: { type: string, example: "Atibaia" }
+        state: { type: string, example: "SP" }
+        zip_code: { type: string, example: "12940000" }
+        complement: { type: string, example: "Casa 2" }
+    ScreenTypeInput:
+      type: object
+      properties:
+        name: { type: string, example: "Tela mosquiteira fixa" }
+        description: { type: string, example: "Modelo fixo para janelas" }
+        base_price: { type: number, example: 140.00 }
+        is_available: { type: boolean, example: true }
+    ServiceRequestInput:
+      type: object
+      properties:
+        customer_id: { type: integer, example: 1 }
+        address_id: { type: integer, example: 1 }
+        status: { type: string, example: "waiting_measurement" }
+        measurement_required: { type: boolean, example: true }
+        description: { type: string, example: "Cliente precisa de medição para janelas e porta da sacada." }
+        preferred_date: { type: string, example: "2026-07-15" }
+        total_estimated_price: { type: number, example: 0 }
+    RequestItemInput:
+      type: object
+      properties:
+        service_request_id: { type: integer, example: 1 }
+        screen_type_id: { type: integer, example: 1 }
+        quantity: { type: integer, example: 2 }
+        width: { type: number, nullable: true, example: 1.20 }
+        height: { type: number, nullable: true, example: 1.00 }
+        room: { type: string, example: "Quarto" }
+        notes: { type: string, example: "Medidas confirmadas na visita técnica." }
+        unit_price: { type: number, example: 140.00 }
+    MeasurementVisitInput:
+      type: object
+      properties:
+        service_request_id: { type: integer, example: 1 }
+        professional_id: { type: integer, example: 2 }
+        scheduled_date: { type: string, example: "2026-07-15T14:00:00.000Z" }
+        status: { type: string, example: "scheduled" }
+        notes: { type: string, example: "Visita para tirar medidas." }
+paths:
+  /login:
+    post:
+      security: []
+      summary: Realiza login e retorna token JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200': { description: Login realizado com sucesso }
+        '401': { description: Credenciais inválidas }
+  /health:
+    get:
+      security: []
+      summary: Verifica status da API, PostgreSQL e Redis
+      responses:
+        '200': { description: Status dos serviços }
+  /users:
+    get:
+      summary: Lista usuários
+      responses:
+        '200': { description: Lista de usuários }
+    post:
+      summary: Cria usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '201': { description: Usuário criado }
+  /users/{id}:
+    get:
+      summary: Consulta usuário por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Usuário encontrado }
+    put:
+      summary: Atualiza usuário
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '200': { description: Usuário atualizado }
+    delete:
+      summary: Remove usuário
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Usuário removido }
+  /customers:
+    get:
+      summary: Lista clientes
+      responses:
+        '200': { description: Lista de clientes }
+    post:
+      summary: Cria cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerInput' }
+      responses:
+        '201': { description: Cliente criado }
+  /customers/{id}:
+    get:
+      summary: Consulta cliente por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Cliente encontrado }
+    put:
+      summary: Atualiza cliente
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerInput' }
+      responses:
+        '200': { description: Cliente atualizado }
+    delete:
+      summary: Remove cliente
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Cliente removido }
+  /addresses:
+    get:
+      summary: Lista endereços
+      responses:
+        '200': { description: Lista de endereços }
+    post:
+      summary: Cria endereço
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '201': { description: Endereço criado }
+  /addresses/{id}:
+    get:
+      summary: Consulta endereço por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Endereço encontrado }
+    put:
+      summary: Atualiza endereço
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '200': { description: Endereço atualizado }
+    delete:
+      summary: Remove endereço
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Endereço removido }
+  /screen-types:
+    get:
+      summary: Lista tipos de tela/serviço
+      responses:
+        '200': { description: Lista de tipos de tela }
+    post:
+      summary: Cria tipo de tela/serviço
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScreenTypeInput' }
+      responses:
+        '201': { description: Tipo de tela criado }
+  /screen-types/{id}:
+    get:
+      summary: Consulta tipo de tela por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Tipo de tela encontrado }
+    put:
+      summary: Atualiza tipo de tela
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScreenTypeInput' }
+      responses:
+        '200': { description: Tipo de tela atualizado }
+    delete:
+      summary: Remove tipo de tela
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Tipo de tela removido }
+  /service-requests:
+    get:
+      summary: Lista solicitações de serviço
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: measurement_required, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Lista de solicitações }
+    post:
+      summary: Cria solicitação de serviço/orçamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestInput' }
+      responses:
+        '201': { description: Solicitação criada }
+  /service-requests/{id}:
+    get:
+      summary: Consulta solicitação por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Solicitação encontrada }
+    put:
+      summary: Atualiza solicitação
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestInput' }
+      responses:
+        '200': { description: Solicitação atualizada }
+    delete:
+      summary: Remove solicitação
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Solicitação removida }
+  /request-items:
+    get:
+      summary: Lista itens das solicitações
+      responses:
+        '200': { description: Lista de itens }
+    post:
+      summary: Cria item da solicitação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestItemInput' }
+      responses:
+        '201': { description: Item criado }
+  /request-items/{id}:
+    get:
+      summary: Consulta item por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Item encontrado }
+    put:
+      summary: Atualiza item
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestItemInput' }
+      responses:
+        '200': { description: Item atualizado }
+    delete:
+      summary: Remove item
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Item removido }
+  /measurement-visits:
+    get:
+      summary: Lista visitas técnicas de medição
+      responses:
+        '200': { description: Lista de visitas }
+    post:
+      summary: Cria visita técnica de medição
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeasurementVisitInput' }
+      responses:
+        '201': { description: Visita criada }
+  /measurement-visits/{id}:
+    get:
+      summary: Consulta visita técnica por ID
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Visita encontrada }
+    put:
+      summary: Atualiza visita técnica
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeasurementVisitInput' }
+      responses:
+        '200': { description: Visita atualizada }
+    delete:
+      summary: Remove visita técnica
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '204': { description: Visita removida }

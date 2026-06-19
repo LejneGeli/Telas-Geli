@@ -1,0 +1,67 @@
+erDiagram
+  USERS ||--o{ MEASUREMENT_VISITS : realiza
+  CUSTOMERS ||--o{ ADDRESSES : possui
+  CUSTOMERS ||--o{ SERVICE_REQUESTS : solicita
+  ADDRESSES ||--o{ SERVICE_REQUESTS : recebe
+  SERVICE_REQUESTS ||--o{ MEASUREMENT_VISITS : agenda
+  SERVICE_REQUESTS ||--o{ REQUEST_ITEMS : contem
+  SCREEN_TYPES ||--o{ REQUEST_ITEMS : compoe
+
+  USERS {
+    int id PK
+    varchar name
+    varchar email UK
+    varchar password_hash
+    varchar role
+  }
+
+  CUSTOMERS {
+    int id PK
+    varchar name
+    varchar email
+    varchar phone
+    varchar document UK
+  }
+
+  ADDRESSES {
+    int id PK
+    int customer_id FK
+    varchar street
+    varchar number
+    varchar city
+    char state
+  }
+
+  SCREEN_TYPES {
+    int id PK
+    varchar name UK
+    decimal base_price
+    boolean is_available
+  }
+
+  SERVICE_REQUESTS {
+    int id PK
+    int customer_id FK
+    int address_id FK
+    varchar status
+    boolean measurement_required
+    decimal total_estimated_price
+  }
+
+  MEASUREMENT_VISITS {
+    int id PK
+    int service_request_id FK
+    int professional_id FK
+    timestamp scheduled_date
+    varchar status
+  }
+
+  REQUEST_ITEMS {
+    int id PK
+    int service_request_id FK
+    int screen_type_id FK
+    int quantity
+    decimal width
+    decimal height
+    decimal total_price
+  }

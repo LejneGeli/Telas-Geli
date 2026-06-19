@@ -1,0 +1,38 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache / temporários
+.cache/
+.tmp/
+temp/
+coverage/
+
+# Build / saída
+dist/
+build/
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Docker local / arquivos temporários
+docker-compose.override.yml
+
+# Banco local em arquivo, se existir
+*.sqlite
+*.sqlite3
+*.db

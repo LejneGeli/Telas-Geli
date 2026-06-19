@@ -1,0 +1,103 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: mosquiteiras-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - frontend
+      - backend
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mosquiteiras-app
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mosquiteiras_db
+      DB_USER: mosquiteiras_user
+      DB_PASSWORD: mosquiteiras_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: altere-este-segredo-no-env-real
+      JWT_EXPIRES_IN: 8h
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+
+  node-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mosquiteiras-node-cli
+    profiles:
+      - cli
+    entrypoint: ["node", "command.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mosquiteiras_db
+      DB_USER: mosquiteiras_user
+      DB_PASSWORD: mosquiteiras_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: altere-este-segredo-no-env-real
+      JWT_EXPIRES_IN: 8h
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: mosquiteiras-postgres
+    environment:
+      POSTGRES_DB: mosquiteiras_db
+      POSTGRES_USER: mosquiteiras_user
+      POSTGRES_PASSWORD: mosquiteiras_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mosquiteiras_user -d mosquiteiras_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: mosquiteiras-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
