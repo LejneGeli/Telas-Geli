@@ -1,4 +1,31 @@
 services:
+  nodecommand-container:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mosquiteiras-nodecommand
+    profiles:
+      - cli
+    entrypoint: ["node", "command.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mosquiteiras_db
+      DB_USER: mosquiteiras_user
+      DB_PASSWORD: mosquiteiras_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: altere-este-segredo-no-env-real
+      JWT_EXPIRES_IN: 8h
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+
   nginx:
     image: nginx:1.27-alpine
     container_name: mosquiteiras-nginx

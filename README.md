@@ -356,3 +356,53 @@ docker compose down -v
 ## 13. Observação sobre segredos
 
 O projeto usa variáveis de ambiente. Nunca devem ser commitadas senhas reais, tokens reais ou chaves de produção. O arquivo `.env.example` serve apenas como modelo.
+
+## Executando migrations com container efêmero
+
+O PostgreSQL não possui porta publicada para o host. Ele é acessado apenas pelos containers dentro da rede interna do Docker Compose.
+
+Por isso, as migrations são executadas por um container temporário Node.js, chamado `nodecommand-container`.
+
+### Subir PostgreSQL e Redis
+
+```bash
+docker compose up -d postgres redis
+```
+
+### Executar migrations
+
+```bash
+docker compose run --rm nodecommand-container migrate
+```
+
+### Executar seed
+
+```bash
+docker compose run --rm nodecommand-container seed
+```
+
+### Subir aplicação completa
+
+```bash
+docker compose up --build -d
+```
+
+### Verificar containers
+
+```bash
+docker compose ps
+```
+
+### Testar saúde da aplicação
+
+```bash
+curl http://localhost:8080/health
+```
+
+### Testar login
+
+```bash
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@mosquiteiras.local","password":"123456"}'
+```

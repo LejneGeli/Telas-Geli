@@ -18,4 +18,4 @@ USER appuser
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node command.js migrate && node command.js seed && node web.js"]
+CMD ["node", "web.js"]
