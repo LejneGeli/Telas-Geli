@@ -6,6 +6,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
 const routes = require('./routes');
+const authMiddleware = require('./middlewares/authMiddleware');
 const requestLogger = require('./middlewares/requestLogger');
 const { sequelize } = require('./models');
 const { connectRedis } = require('./config/redis');
@@ -21,7 +22,7 @@ app.use(requestLogger);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-app.get('/', (req, res) => {
+app.get('/', authMiddleware, (req, res) => {
   res.json({
     name: 'Telas Mosqueteiras API',
     status: 'online',
@@ -30,7 +31,7 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/health', async (req, res) => {
+app.get('/health', authMiddleware, async (req, res) => {
   let database = 'down';
   let redisStatus = 'down';
 

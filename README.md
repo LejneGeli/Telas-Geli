@@ -12,30 +12,51 @@ API REST para gerenciamento de solicitações de orçamento, visitas técnicas d
 
 ## 2. Arquitetura
 
-O servidor Node.js fica privado e não possui porta publicada diretamente para o host. O acesso externo acontece somente pelo Nginx.
+O servidor Node.js fica privado e não possui porta publicada diretamente para o host. O acesso externo acontece somente pelo Nginx, que funciona como proxy reverso.
 
 ```txt
 Host -> Nginx -> Node Web Server -> PostgreSQL
                               -> Redis
 ```
 
+O fluxo esperado da aplicação é:
+
+```txt
+Usuário -> http://localhost:8080 -> Nginx -> app:3000 -> PostgreSQL
+```
+
 ## 3. Containers utilizados
 
-| Container | Função | Exposto ao host? |
-|---|---|---|
-| nginx | Proxy reverso | Sim, porta 8080 |
-| app | API Node.js/Express | Não |
-| postgres | Banco de dados PostgreSQL 17 | Não |
-| redis | Cache Redis | Não |
-| node-cli | Execução de comandos CLI | Não, profile cli |
+| Container | Função                       | Exposto ao host? |
+| --------- | ---------------------------- | ---------------- |
+| nginx     | Proxy reverso                | Sim, porta 8080  |
+| app       | API Node.js/Express          | Não              |
+| postgres  | Banco de dados PostgreSQL 17 | Não              |
+| redis     | Cache Redis                  | Não              |
+| node-cli  | Execução de comandos CLI     | Não, profile cli |
 
-## 4. Pré-requisitos
+## 4. Tecnologias utilizadas
 
-- Docker Desktop instalado.
-- Docker Compose disponível pelo comando `docker compose`.
-- Terminal na raiz do projeto.
+* Node.js 24
+* Express
+* PostgreSQL 17
+* Sequelize
+* Driver pg
+* JWT
+* bcrypt
+* Swagger
+* Docker
+* Docker Compose
+* Nginx
+* Redis
 
-## 5. Como executar o projeto com Docker
+## 5. Pré-requisitos
+
+* Docker Desktop instalado.
+* Docker Compose disponível pelo comando `docker compose`.
+* Terminal aberto na raiz do projeto.
+
+## 6. Como executar o projeto com Docker
 
 Na raiz do projeto, execute:
 
@@ -43,25 +64,47 @@ Na raiz do projeto, execute:
 docker compose up --build
 ```
 
+Esse comando cria e inicia os containers necessários para o funcionamento da aplicação.
+
 A API ficará disponível pelo Nginx em:
 
 ```txt
 http://localhost:8080
 ```
 
-A documentação Swagger ficará em:
+A documentação Swagger ficará disponível em:
 
 ```txt
 http://localhost:8080/api-docs
 ```
 
-A rota de saúde ficará em:
+O servidor Node.js não deve ser acessado diretamente pelo host. O acesso externo deve acontecer somente pela porta do Nginx.
 
-```txt
-http://localhost:8080/health
+## 7. Migrations e seed
+
+O container `app` executa as migrations e o seed automaticamente ao iniciar.
+
+Também é possível executar os comandos manualmente pelo container CLI.
+
+### Executar migrations manualmente
+
+```bash
+docker compose run --rm node-cli migrate
 ```
 
-## 6. Login e uso do JWT
+### Executar seed manualmente
+
+```bash
+docker compose run --rm node-cli seed
+```
+
+### Resetar o banco, recriar as tabelas e popular novamente
+
+```bash
+docker compose run --rm node-cli reset
+```
+
+## 8. Login e uso do JWT
 
 O seed cria um usuário administrador padrão:
 
@@ -70,7 +113,7 @@ Email: admin@mosquiteiras.local
 Senha: 123456
 ```
 
-Faça login:
+Para fazer login, execute:
 
 ```bash
 curl -X POST http://localhost:8080/login \
@@ -78,24 +121,64 @@ curl -X POST http://localhost:8080/login \
   -d '{"email":"admin@mosquiteiras.local","password":"123456"}'
 ```
 
-Copie o valor do campo `token` retornado.
+A resposta retornará um token JWT.
 
-Depois use o token nas rotas protegidas:
+Exemplo de resposta:
+
+```json
+{
+  "token": "SEU_TOKEN_JWT"
+}
+```
+
+Copie o valor do campo `token`.
+
+Depois, use o token nas rotas protegidas:
 
 ```bash
 curl http://localhost:8080/customers \
   -H "Authorization: Bearer SEU_TOKEN_AQUI"
 ```
 
-Todas as rotas de negócio são protegidas por JWT, exceto:
+Todas as rotas da API são protegidas por JWT, exceto:
 
 ```txt
 POST /login
-GET /health
 GET /api-docs
 ```
 
-## 7. Rotas principais
+## 9. Testar saúde da aplicação
+
+A rota de saúde também é protegida por JWT.
+
+Depois de realizar login e copiar o token, execute:
+
+```bash
+curl http://localhost:8080/health \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+## 10. Swagger
+
+A documentação Swagger está disponível em:
+
+```txt
+http://localhost:8080/api-docs
+```
+
+O Swagger documenta as rotas principais da API, incluindo as operações de:
+
+```txt
+list
+get
+create
+update
+delete
+```
+
+Também estão documentadas as rotas relacionadas à tabela pivô `request_items`.
+
+## 11. Rotas principais
 
 ### Autenticação
 
@@ -173,29 +256,39 @@ PUT    /measurement-visits/:id
 DELETE /measurement-visits/:id
 ```
 
-## 8. Como executar migrations pelo command
+## 12. Banco de dados
 
-O container `app` executa migrations e seed automaticamente ao iniciar.
+Banco escolhido: PostgreSQL 17.
 
-Para executar manualmente:
+Justificativa: o domínio do sistema é relacional. O projeto possui clientes, endereços, solicitações de orçamento, visitas técnicas e itens de pedido. A relação N:N entre solicitações e tipos de tela é resolvida pela tabela pivô `request_items`.
 
-```bash
-docker compose run --rm node-cli migrate
+Tabelas principais:
+
+```txt
+users
+customers
+addresses
+screen_types
+service_requests
+measurement_visits
+request_items
+migrations
 ```
 
-Para popular dados manualmente:
+Relações principais:
 
-```bash
-docker compose run --rm node-cli seed
+```txt
+customers 1:N addresses
+customers 1:N service_requests
+addresses 1:N service_requests
+service_requests 1:N measurement_visits
+users 1:N measurement_visits
+service_requests N:N screen_types por meio de request_items
 ```
 
-Para resetar o banco, recriar as tabelas e popular novamente:
+A tabela `request_items` funciona como tabela pivô e também possui Model própria.
 
-```bash
-docker compose run --rm node-cli reset
-```
-
-## 9. Evidências de funcionamento
+## 13. Evidências de funcionamento
 
 ### Ver containers em execução
 
@@ -231,15 +324,23 @@ app -> redis:6379
 
 Não há uso de IP fixo entre containers.
 
-### Provar que o Node.js não está exposto diretamente
+## 14. Provar que o Node.js não está exposto diretamente
 
-O serviço `app` usa apenas `expose: 3000`, sem `ports`. Por isso, o host acessa a API somente pelo Nginx:
+O serviço `app` usa apenas `expose: 3000`, sem `ports`.
+
+Por isso, o host acessa a API somente pelo Nginx:
 
 ```txt
 http://localhost:8080
 ```
 
-### Provar persistência do banco
+A arquitetura final fica:
+
+```txt
+Host -> Nginx -> Node Web Server -> PostgreSQL
+```
+
+## 15. Provar persistência do banco
 
 1. Suba o projeto:
 
@@ -247,52 +348,32 @@ http://localhost:8080
 docker compose up --build
 ```
 
-2. Liste clientes pela API.
-3. Pare os containers sem apagar volumes:
+2. Faça login e copie o token JWT.
+
+3. Liste clientes pela API:
+
+```bash
+curl http://localhost:8080/customers \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+4. Pare os containers sem apagar volumes:
 
 ```bash
 docker compose down
 ```
 
-4. Suba novamente:
+5. Suba novamente:
 
 ```bash
 docker compose up --build
 ```
 
-5. Liste os clientes novamente. Os dados permanecem porque o PostgreSQL usa o named volume `postgres_data`.
+6. Faça login novamente e liste os clientes outra vez.
 
-## 10. Banco de dados
+Os dados permanecem porque o PostgreSQL usa o named volume `postgres_data`.
 
-Banco escolhido: PostgreSQL 17.
-
-Justificativa: o domínio é relacional. O sistema possui clientes, endereços, solicitações, visitas e itens de pedido. A relação N:N entre solicitações e tipos de tela é resolvida pela tabela pivô `request_items`.
-
-Tabelas:
-
-```txt
-users
-customers
-addresses
-screen_types
-service_requests
-measurement_visits
-request_items
-migrations
-```
-
-Relações principais:
-
-```txt
-customers 1:N addresses
-customers 1:N service_requests
-addresses 1:N service_requests
-service_requests 1:N measurement_visits
-users 1:N measurement_visits
-service_requests N:N screen_types por meio de request_items
-```
-
-## 11. Arquivos importantes para avaliação
+## 16. Arquivos importantes para avaliação
 
 ```txt
 Dockerfile
@@ -301,6 +382,13 @@ docker-compose.yml
 nginx/default.conf
 web.js
 command.js
+src/app.js
+src/routes/index.js
+src/controllers
+src/models
+src/middlewares
+src/database/migrationRunner.js
+src/seeders/seed.js
 src/swagger/swagger.yaml
 modelagem/dicionario_dados.md
 modelagem/modelo_logico.md
@@ -314,11 +402,11 @@ queries/agregacoes.sql
 justificativa/arquitetura.md
 ```
 
-## 12. Troubleshooting
+## 17. Troubleshooting
 
 ### O comando `docker compose up --build` falhou
 
-Tente limpar containers antigos do projeto:
+Tente parar os containers antigos do projeto:
 
 ```bash
 docker compose down
@@ -332,7 +420,16 @@ docker compose up --build
 
 ### Porta 8080 ocupada
 
-Altere a porta no `docker-compose.yml`:
+Altere a porta no `docker-compose.yml`.
+
+De:
+
+```yaml
+ports:
+  - "8080:80"
+```
+
+Para:
 
 ```yaml
 ports:
@@ -353,56 +450,69 @@ Atenção: este comando remove os dados persistidos.
 docker compose down -v
 ```
 
-## 13. Observação sobre segredos
-
-O projeto usa variáveis de ambiente. Nunca devem ser commitadas senhas reais, tokens reais ou chaves de produção. O arquivo `.env.example` serve apenas como modelo.
-
-## Executando migrations com container efêmero
-
-O PostgreSQL não possui porta publicada para o host. Ele é acessado apenas pelos containers dentro da rede interna do Docker Compose.
-
-Por isso, as migrations são executadas por um container temporário Node.js, chamado `nodecommand-container`.
-
-### Subir PostgreSQL e Redis
+Depois suba novamente:
 
 ```bash
-docker compose up -d postgres redis
+docker compose up --build
 ```
 
-### Executar migrations
+## 18. Observação sobre segredos
+
+O projeto usa variáveis de ambiente.
+
+Nunca devem ser commitadas senhas reais, tokens reais ou chaves de produção.
+
+O arquivo `.env.example` serve apenas como modelo para configuração do ambiente.
+
+## 19. Resumo dos comandos principais
+
+Subir o projeto completo:
 
 ```bash
-docker compose run --rm nodecommand-container migrate
+docker compose up --build
 ```
 
-### Executar seed
+Executar migrations manualmente:
 
 ```bash
-docker compose run --rm nodecommand-container seed
+docker compose run --rm node-cli migrate
 ```
 
-### Subir aplicação completa
+Executar seed manualmente:
 
 ```bash
-docker compose up --build -d
+docker compose run --rm node-cli seed
 ```
 
-### Verificar containers
+Resetar banco:
+
+```bash
+docker compose run --rm node-cli reset
+```
+
+Ver containers:
 
 ```bash
 docker compose ps
 ```
 
-### Testar saúde da aplicação
-
-```bash
-curl http://localhost:8080/health
-```
-
-### Testar login
+Fazer login:
 
 ```bash
 curl -X POST http://localhost:8080/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@mosquiteiras.local","password":"123456"}'
+```
+
+Testar rota protegida:
+
+```bash
+curl http://localhost:8080/customers \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+Acessar Swagger:
+
+```txt
+http://localhost:8080/api-docs
 ```
